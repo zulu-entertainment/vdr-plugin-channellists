@@ -10,7 +10,7 @@
 #include <vdr/timers.h>
 #include <vdr/interface.h>
 
-static const char *VERSION        = "0.0.5";
+static const char *VERSION        = "0.0.6";
 static const char *DESCRIPTION    = trNOOP("Manage your channellists");
 static const char *MAINMENUENTRY  = trNOOP("Channellists");
 
@@ -350,7 +350,8 @@ cString cPluginChannellists::SVDRPCommand(const char *Command, const char *Optio
         FILE *in,*out;
         in=fopen(Option,"r");
         if (in) {
-           Channels.SwitchTo(1);
+           LOCK_CHANNELS_READ
+           Channels->SwitchTo(1);
            TimerList timers;
            timers.SaveTimer();
            out=fopen(ChannelsConf,"w");
@@ -364,8 +365,8 @@ cString cPluginChannellists::SVDRPCommand(const char *Command, const char *Optio
               LOG_ERROR_STR(ChannelsConf);
               }
            fclose(in);
-           Channels.Load(ChannelsConf);
-           Channels.SwitchTo(1);
+           Channels->Load(ChannelsConf);
+           Channels->SwitchTo(1);
            timers.RestoreTimer();
            return cString::sprintf("channels.conf successfully reloaded");
            }
@@ -377,8 +378,9 @@ cString cPluginChannellists::SVDRPCommand(const char *Command, const char *Optio
      else {
         TimerList timers;
         timers.SaveTimer();
-        Channels.Load(ChannelsConf);
-        Channels.SwitchTo(1);
+        LOCK_CHANNELS_READ
+        Channels->Load(ChannelsConf);
+        Channels->SwitchTo(1);
         timers.RestoreTimer();
         return cString::sprintf("channels.conf successfully reloaded");
         }
@@ -391,24 +393,27 @@ cString cPluginChannellists::SVDRPCommand(const char *Command, const char *Optio
 // Timer Save and Restore Methods
 void TimerList::SaveTimer() {
   myTimers.Clear();
-  for (cTimer *t = Timers.First(); t; t= Timers.Next(t)) {
+  LOCK_TIMERS_WRITE;
+  for (const cTimer *t = Timers->First(); t; t= Timers->Next(t)) {
      myTimers.Add(new TimerString(t->ToText(true)));
      }
-  Timers.cList<cTimer>::Clear();
+  Timers->cList<cTimer>::Clear();
   }
 
 // restore Timers, delete Timers with unknown channel
 void TimerList::RestoreTimer() {
-  Timers.cList<cTimer>::Clear();
+  LOCK_TIMERS_WRITE;
+  Timers->SetExplicitModify();
+  Timers->cList<cTimer>::Clear();
 
-  for (TimerString *timer = myTimers.First(); timer; timer= myTimers.Next(timer)) {
+  for (TimerString *timer = myTimers.First(); timer; timer = myTimers.Next(timer)) {
      cString t = timer->GetTimerString();
      cTimer *tim = new cTimer();
      tim->Parse(t);
      if (tim->Channel() != NULL)
-        Timers.Add(tim);
+        Timers->Add(tim);
      }
-  Timers.SetModified();
+  Timers->SetModified();
   myTimers.Clear();
   }
 
@@ -566,7 +571,8 @@ eOSState cSwitchMenu::SwitchChannellist() {
      FILE *in,*out;
      in=fopen(ToLoad,"r");
      if (in) {
-        Channels.SwitchTo(1);
+        LOCK_CHANNELS_READ
+        Channels->SwitchTo(1);
         TimerList timers;
         timers.SaveTimer();
         out=fopen(ChannelsConf,"w");
@@ -581,8 +587,8 @@ eOSState cSwitchMenu::SwitchChannellist() {
            ErrorMsg(trNOOP("An error occurs, see syslog..."));
            }
         fclose(in);
-        Channels.Load(ChannelsConf);
-        Channels.SwitchTo(1);
+        Channels->Load(ChannelsConf);
+        Channels->SwitchTo(1);
         timers.RestoreTimer();
         if (ActionAfterSwitch == 1)
            state = osBack;
