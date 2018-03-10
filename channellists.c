@@ -394,7 +394,8 @@ void TimerList::SaveTimer() {
   LOCK_TIMERS_WRITE;
   myTimers.Clear();
   for (cTimer *t = Timers->First(); t; t= Timers->Next(t)) {
-     myTimers.Add(new TimerString(t->ToText(true)));
+     if (t->Local())
+        myTimers.Add(new TimerString(t->ToText(true)));
      }
   Timers->cList<cTimer>::Clear();
   }
