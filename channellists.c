@@ -345,12 +345,12 @@ cString cPluginChannellists::SVDRPCommand(const char *Command, const char *Optio
      return cString::sprintf("sorry, this is for testing only");
      }
   else if (strcasecmp(Command, "LOAD") == 0) {
+     LOCK_CHANNELS_WRITE;
      if ((*Option) && (strcmp(Option, ChannelsConf)!= 0)) {
         int c;
         FILE *in,*out;
         in=fopen(Option,"r");
         if (in) {
-           LOCK_CHANNELS_READ
            Channels->SwitchTo(1);
            TimerList timers;
            timers.SaveTimer();
@@ -378,7 +378,6 @@ cString cPluginChannellists::SVDRPCommand(const char *Command, const char *Optio
      else {
         TimerList timers;
         timers.SaveTimer();
-        LOCK_CHANNELS_READ
         Channels->Load(ChannelsConf);
         Channels->SwitchTo(1);
         timers.RestoreTimer();
@@ -392,9 +391,9 @@ cString cPluginChannellists::SVDRPCommand(const char *Command, const char *Optio
 // --- TimerList -------------------------------------------------------------
 // Timer Save and Restore Methods
 void TimerList::SaveTimer() {
-  myTimers.Clear();
   LOCK_TIMERS_WRITE;
-  for (const cTimer *t = Timers->First(); t; t= Timers->Next(t)) {
+  myTimers.Clear();
+  for (cTimer *t = Timers->First(); t; t= Timers->Next(t)) {
      myTimers.Add(new TimerString(t->ToText(true)));
      }
   Timers->cList<cTimer>::Clear();
@@ -403,10 +402,9 @@ void TimerList::SaveTimer() {
 // restore Timers, delete Timers with unknown channel
 void TimerList::RestoreTimer() {
   LOCK_TIMERS_WRITE;
-  Timers->SetExplicitModify();
   Timers->cList<cTimer>::Clear();
 
-  for (TimerString *timer = myTimers.First(); timer; timer = myTimers.Next(timer)) {
+  for (TimerString *timer = myTimers.First(); timer; timer= myTimers.Next(timer)) {
      cString t = timer->GetTimerString();
      cTimer *tim = new cTimer();
      tim->Parse(t);
@@ -571,7 +569,7 @@ eOSState cSwitchMenu::SwitchChannellist() {
      FILE *in,*out;
      in=fopen(ToLoad,"r");
      if (in) {
-        LOCK_CHANNELS_READ
+        LOCK_CHANNELS_WRITE;
         Channels->SwitchTo(1);
         TimerList timers;
         timers.SaveTimer();
