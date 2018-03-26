@@ -408,7 +408,6 @@ void TimerList::RestoreTimer() {
      if (tim->Channel() != NULL)
         Timers.Add(tim);
      }
-  Timers.SetModified();
   myTimers.Clear();
   }
 
