@@ -409,6 +409,7 @@ void TimerList::RestoreTimer() {
         Timers.Add(tim);
      }
   myTimers.Clear();
+  Timers.SetModified();
   }
 
 
